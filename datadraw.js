@@ -289,6 +289,7 @@ var DataDraw = function(map, update)
     this.field;
     this.projection = "";
     this.type = "scalar";
+    this.units = "";
     this.map = map;
     this.src = null;
     this.update = update;
@@ -312,6 +313,7 @@ DataDraw.prototype.loadData = function(data)
 {
     this.projection = data.projection;
     this.type = data.type;
+    this.units = data.units;
     var me = this;
     var i = 0;
 
@@ -343,7 +345,7 @@ DataDraw.prototype.loadData = function(data)
     this.field.dataGathered();
     this.cleanCanvas();
     this.colors = new colorFactory(this.colorMap, this.field.minLength, this.field.maxLength, 50);
-    
+
     if (typeof Proj4js.defs[data.projection] === "undefined")
     {
         Proj4js.loadScript("http://spatialreference.org/ref/epsg/" + this.projection.slice(5) + "/proj4js/", function() {
@@ -384,17 +386,17 @@ DataDraw.prototype.setColorMap = function(map)
     }
 };
 
-DataDraw.prototype.drawLegend = function(canvas, w, unit, tofixed)
+DataDraw.prototype.drawLegend = function(canvas, w, opt_fixed, opt_withoutUnits)
 {
     if (!this.field) {
         return;
     }
-    
+
     var ctx = canvas.getContext("2d");
     var h = canvas.height;
     ctx.clearRect(0, 0, canvas.width, h);
-    unit = unit || "";
-    tofixed = tofixed || 0;
+    var fixed = opt_fixed || 0;
+    var withoutUnits = opt_withoutUnits || false;
     var nb = 50;
     var inc = 100 / nb;
 
@@ -407,8 +409,16 @@ DataDraw.prototype.drawLegend = function(canvas, w, unit, tofixed)
 
     ctx.font = "20px Arial";
     ctx.fillStyle = "rgb(255,255,255)";
-    ctx.fillText(this.field.maxLength.toFixed(tofixed).toString() + " " + unit, w, 20);
-    ctx.fillText(this.field.minLength.toFixed(tofixed).toString() + " " + unit, w, h - 3);
+    if (withoutUnits)
+    {
+        ctx.fillText(this.field.maxLength.toFixed(fixed).toString(), w, 20);
+        ctx.fillText(this.field.minLength.toFixed(fixed).toString(), w, h - 3);
+    }
+    else
+    {
+        ctx.fillText(this.field.maxLength.toFixed(fixed).toString() + " " + this.units, w, 20);
+        ctx.fillText(this.field.minLength.toFixed(fixed).toString() + " " + this.units, w, h - 3);
+    }
 };
 
 //==============================================================================
@@ -486,7 +496,7 @@ DataDraw.Field.prototype.dataGathered = function()
     if (this.cols > 0) {
         this.rows = this.data[0].length;
     }
-    
+
     this.pxIndexes = Math.sqrt(Math.pow(this.corners.xur - this.corners.xul, 2) + Math.pow(this.corners.yur - this.corners.yul, 2)) / this.cols;
     this.pyIndexes = Math.sqrt(Math.pow(this.corners.xul - this.corners.xll, 2) + Math.pow(this.corners.yul - this.corners.yll, 2)) / this.rows;
 };
@@ -683,7 +693,7 @@ DataDraw.prototype.drawVector = function(size, opt_interpolate)
     if (this.type == "scalar") {
         return;
     }
-    
+
     var canvasWidth = this.canvasLayer.canvas.width;
     var canvasHeight = this.canvasLayer.canvas.height;
     size = parseFloat(size);
@@ -756,10 +766,10 @@ DataDraw.prototype.drawParticles = function(size, posX, posY)
     if (this.type == "scalar") {
         return;
     }
-    
+
     this.context.lineWidth = 2;
     this.animate(posX, posY);
-    
+
     for (var i = 0; i < this.particles.length; i++)
     {
         var p = this.particles[i];
