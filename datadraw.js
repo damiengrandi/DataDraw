@@ -309,7 +309,39 @@ var DataDraw = function(map, update)
     this.context = this.canvasLayer.canvas.getContext('2d');
 };
 
-DataDraw.prototype.loadData = function(data)
+/**
+ * Function to load data
+ * 
+ * If data.type is "index", you can't call "drawLegend" and you may want 
+ * to set specific colors to your table of indexes and so specify 
+ * "opt_indexColorMap" which is an object containing a function
+ * called "getColorForValue(value)" that returns an object like :
+ *          { r: (0-255), g: (0-255), b: (0-255) }
+ * 
+ * @example
+ *  
+ * var indexMap = {
+ *   getColorForValue: function(value) {
+ *     return this.val[value];
+ *   },
+ *   val : {
+ *     111: {"r":230, "g":0, "b":77},
+ *     314: {"r":120, "g":20, "b":0}
+ *   }
+ * };
+ * 
+ * var somedata = {
+ *   "type": "index",
+ *   "field": [111, 111, 314, 111, 314]
+ *   ...
+ * };
+ * 
+ * datadraw.loadData(somedata, indexMap);
+ * 
+ * @param {object} data
+ * @param {object} opt_indexColorMap
+ */
+DataDraw.prototype.loadData = function(data, opt_indexColorMap)
 {
     this.projection = data.projection;
     this.type = data.type;
@@ -329,7 +361,7 @@ DataDraw.prototype.loadData = function(data)
             }
         }
     }
-    else if (data.type == "scalar")
+    else if (data.type == "scalar" || data.type == "index")
     {
         this.field = new DataDraw.ScalarField();
         for (var x = 0; x < data.gridWidth; x++)
@@ -341,10 +373,17 @@ DataDraw.prototype.loadData = function(data)
             }
         }
     }
+    
     this.field.setCorners(data.xll, data.yll, data.xul, data.yul, data.xur, data.yur, data.xlr, data.ylr);
     this.field.dataGathered();
     this.cleanCanvas();
-    this.colors = new colorFactory(this.colorMap, this.field.minLength, this.field.maxLength, 50);
+    
+    if (data.type == "index" && opt_indexColorMap) {
+        this.colors = opt_indexColorMap;
+    }
+    else {
+        this.colors = new colorFactory(this.colorMap, this.field.minLength, this.field.maxLength, 50);
+    }
 
     if (typeof Proj4js.defs[data.projection] === "undefined")
     {
@@ -388,7 +427,7 @@ DataDraw.prototype.setColorMap = function(map)
 
 DataDraw.prototype.drawLegend = function(canvas, w, opt_fixed, opt_withoutUnits)
 {
-    if (!this.field) {
+    if (!this.field || this.type == "index") {
         return;
     }
 
@@ -659,12 +698,14 @@ DataDraw.prototype.fromLatLngToPoint = function(lat, lng)
 
 DataDraw.prototype.drawScalar = function(size, opt_interpolate)
 {
-    var me = this;
     var opt_secondLoad = (opt_secondLoad === false) ? false : true;
     var canvasWidth = this.canvasLayer.canvas.width;
     var canvasHeight = this.canvasLayer.canvas.height;
     size = parseFloat(size);
-
+    if (this.type == "index") {
+        opt_interpolate = false;
+    }
+    
     for (var i = 0; i < canvasWidth + size; i += size)
     {
         for (var j = 0; j < canvasHeight + size; j += size)
@@ -676,7 +717,7 @@ DataDraw.prototype.drawScalar = function(size, opt_interpolate)
                 this.context.beginPath();
                 this.context.moveTo(i, j - size);
                 this.context.lineTo(i, j);
-                this.context.strokeStyle = "rgba(" + c.r + "," + c.g + "," + c.b + ", 0.3)";
+                this.context.strokeStyle = "rgba(" + c.r + "," + c.g + "," + c.b + ", 0.4)";
                 this.context.lineWidth = size;
                 this.context.stroke();
             }
@@ -690,7 +731,7 @@ DataDraw.prototype.drawScalar = function(size, opt_interpolate)
 
 DataDraw.prototype.drawVector = function(size, opt_interpolate)
 {
-    if (this.type == "scalar") {
+    if (this.type != "vector") {
         return;
     }
 
@@ -779,8 +820,8 @@ DataDraw.prototype.drawParticles = function(size, posX, posY)
         var s = this.field.getValue(indexes);
         var offsetX = (v[0] + p.vrand[0]) * size / this.field.xRatio;
         var offsetY = (v[1] + p.vrand[1]) * size / this.field.yRatio;
-        p.nextX = p.x + (offsetX / 4);
-        p.nextY = p.y + (offsetY / 4);
+        p.nextX = p.x + (offsetX / 10);
+        p.nextY = p.y + (offsetY / 10);
 
         var c = this.colors.getColorForValue(s);
         var o = 0.8 * s / this.field.maxLength;
@@ -842,7 +883,7 @@ DataDraw.prototype.makeParticle = function(x, y)
         if (this.field.inBounds(p.x, p.y))
         {
             var vdiff = 8;
-            return new DataDraw.Particle(x, y, 1 + 200 * Math.random(), [vdiff * (Math.random() - 0.5), vdiff * (Math.random() - 0.5)]);
+            return new DataDraw.Particle(x, y, 1 + 1000 * Math.random(), [vdiff * (Math.random() - 0.5), vdiff * (Math.random() - 0.5)]);
         }
     }
     else if (this.positions.length != 0)
@@ -858,7 +899,7 @@ DataDraw.prototype.makeParticle = function(x, y)
         if (this.field.inBounds(p.x, p.y))
         {
             var vdiff = 8;
-            return new DataDraw.Particle(px.x, px.y, 1 + 200 * Math.random(), [vdiff * (Math.random() - 0.5), vdiff * (Math.random() - 0.5)]);
+            return new DataDraw.Particle(px.x, px.y, 1 + 1000 * Math.random(), [vdiff * (Math.random() - 0.5), vdiff * (Math.random() - 0.5)]);
         }
     }
 
@@ -870,7 +911,7 @@ DataDraw.prototype.makeParticle = function(x, y)
 
         if (this.field.inBounds(p.x, p.y))
         {
-            return new DataDraw.Particle(px, py, 10 + 10 * Math.random());
+            return new DataDraw.Particle(px, py, 100 + 100 * Math.random());
         }
     }
 };
