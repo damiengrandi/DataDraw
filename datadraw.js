@@ -305,8 +305,14 @@ var DataDraw = function(map, update)
         animate: false,
         updateHandler: update
     });
-
+    
     this.context = this.canvasLayer.canvas.getContext('2d');
+    window.addEventListener("resize", function(){
+        this.canvasLayer.canvas.width = this.map.getDiv().clientWidth;
+        this.canvasLayer.canvas.style.width = this.map.getDiv().clientWidth + "px";
+        this.canvasLayer.canvas.height = this.map.getDiv().clientHeight;
+        this.canvasLayer.canvas.style.height = this.map.getDiv().clientHeight + "px";
+    }.bind(this));
 };
 
 /**
