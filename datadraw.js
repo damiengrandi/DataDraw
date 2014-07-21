@@ -31,7 +31,7 @@
  */
 function colorFactory(style, min, max, number)
 {
-    this.maxIndex = number - 1;
+    this.maxIndex = number;
     this.min = min;
     this.max = max;
 
