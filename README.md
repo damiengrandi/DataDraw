@@ -41,7 +41,7 @@ function update()
   }
 
   datadraw.cleanCanvas();
-  datadraw.drawVector(20, false);
+  datadraw.drawScalar(20, false);
 }
 
 datadraw = new DataDraw(map, update);
